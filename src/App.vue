@@ -22,39 +22,74 @@
       </div>
     </div>
   </div>
-  <div class="chat-box" v-else>
-    <div class="nav">
-      <input type="checkbox" id="nav-check">
-      <div class="nav-header">
-        <div class="nav-title">
-          Welcome, {{username}}
-        </div>
-      </div>
-      <div class="nav-links">
-        <a v-on:click="logout()">Logout</a>
-      </div>
-    </div>
-    <section class="msger">
-      <main class="msger-chat">
-        <div v-for="message in messages" :key="message.key" :class="(message.username==username ? 'msg right-msg' : 'msg left-msg')" class="message">
-          <div class="msg-bubble">
-            <!-- <div class="msg-info">
-              <div class="msg-info-name">BOT</div>
-              <div class="msg-info-time">12:45</div>
-            </div> -->
-            <div class="msg-text">
-              {{message.content}}
+  <div class="chats" v-else>
+    <div class="row">
+      <div class="col1">
+        <div class="chat-list" >
+          <div class="nav">
+            <input type="checkbox" id="nav-check">
+            <div class="nav-header">
+              <div class="nav-title welcome-user">
+                ChitChat
+              </div>
             </div>
           </div>
+          <section class="users">
+            <main class="user-chats">
+              <div class="row">
+                <div v-for="user in users" :key="user.key" class="user" v-on:click="viewChat(user.username)">
+                  <div class="row">
+                    <div class="colu1">
+                      <div class="pro-img">
+                        <img src="./assets/img/user.png" alt="" srcset="">
+                      </div>
+                    </div>
+                    <div class="colu2">
+                      {{user.username}}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </main>
+          </section>
         </div>
-      </main>
-    </section>
-    <footer>
-       <form class="msger-inputarea" @submit.prevent="sendMessage()">
-        <input type="text" v-model="inputMessage" class="msger-input" placeholder="Enter your message...">
-        <button type="submit" class="msger-send-btn">Send</button>
-      </form>
-    </footer>
+      </div>
+      <div class="col2">
+        <div class="chat-box" >
+          <div class="nav">
+            <input type="checkbox" id="nav-check">
+            <div class="nav-header">
+              <div class="nav-title user-name" id="otheruser">
+              </div>
+            </div>
+            <div class="nav-links">
+              <a v-on:click="logout()">{{username}}:Logout</a>
+            </div>
+          </div>
+          <section class="msger" id="msger">
+            <main class="msger-chat">
+              <div v-for="message in messages" :key="message.key" :class="(message.username==username ? 'msg right-msg' : 'msg left-msg')" class="message">
+                <div class="msg-bubble">
+                  <!-- <div class="msg-info">
+                    <div class="msg-info-name">BOT</div>
+                    <div class="msg-info-time">12:45</div>
+                  </div> -->
+                  <div class="msg-text">
+                    {{message.content}}
+                  </div>
+                </div>
+              </div>
+            </main>
+          </section>
+          <footer v-if="otherUsername != '' || otherUsername != null || otherUsername != 'undefined'">
+            <form class="msger-inputarea" @submit.prevent="sendMessage()">
+              <input type="text" v-model="inputMessage" class="msger-input" placeholder="Type here...">
+              <button type="submit" class="msger-send-btn">Send</button>
+            </form>
+          </footer>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 </template>
@@ -68,53 +103,139 @@ export default {
       username:'',
       messages:[],
       inputUserName:'',
-      inputMessage:''
+      inputMessage:'',
+      users:[],
+      otherUsername:''
     }
   },
-  mounted() {
-    this.getMessages();
-  },
   methods:{
+    scrollToEnd() {
+			var container = document.querySelector(".msger-chat");
+			var scrollHeight = container.scrollHeight;
+			container.scrollTop = scrollHeight;
+		},
     login () {
       if(this.inputUserName!="" || this.inputUserName!=null){
         sessionStorage.setItem("username", this.inputUserName);
         this.username=sessionStorage.getItem("username");
         this.inputUserName="";
-        this.getMessages();
+        const messageRef=db.database().ref("users");
+      
+        messageRef.orderByChild("username").equalTo(sessionStorage.getItem("username")).on('value',snapshot=>{
+          const data=snapshot.val();
+          if(data){
+            // this.getMessages();
+            this.getUsers();
+          }else{
+            const messageRef=db.database().ref("users");
+            const user={
+              username:sessionStorage.getItem("username"),
+            }
+            messageRef.push(user);
+            // this.getMessages();
+            this.getUsers();
+          }
+      });
       }
     },
     sendMessage(){
-      const messageRef=db.database().ref('messages');
-      if(this.inputMessage=="" || this.inputMessage==null){
+      this.username=sessionStorage.getItem("username");
+      let count=sessionStorage.getItem("messagecount");
+      const messageRef=db.database().ref(this.username);
+      if(this.inputMessage=="" || this.inputMessage==null || this.otherUsername=="" || this.otherUsername==null || sessionStorage.getItem("otheruser")=='undefined'){
         return;
+      }else{
+        const message={
+          msgcount:parseInt(count)+1,
+          otheruser:this.otherUsername,
+          username:sessionStorage.getItem("username"),
+          content:this.inputMessage
+        }
+        messageRef.push(message);
+        this.inputMessage="";
+        this.getMessages();
+        var elem = document.getElementById('msger');
+        elem.scrollTop = elem.scrollHeight;
       }
-      const message={
-        username:sessionStorage.getItem("username"),
-        content:this.inputMessage
-      }
-
-      messageRef.push(message);
-      this.inputMessage="";
+    },
+    viewChat(otherUser){
+      this.otherUsername=otherUser;
+      sessionStorage.setItem("otheruser", otherUser);
+      document.getElementById("otheruser").innerText=sessionStorage.getItem("otheruser");
+      this.getMessages();
+    }
+    ,
+    getUsers(){
+      const messageRef=db.database().ref("users");
+      
+      messageRef.orderByChild("username").on('value',snapshot=>{
+        const data=snapshot.val();
+        let allusers=[];
+        Object.keys(data).forEach(key=>{
+          if(data[key].username!=this.username){
+              allusers.push({
+              username:data[key].username,
+            });
+          }
+        });
+        this.users=allusers;
+      });
     },
     getMessages(){
-      const messageRef=db.database().ref("messages");
+      this.messages=[];
       this.username=sessionStorage.getItem("username");
-      console.log(sessionStorage.getItem("username")+"xxxxxxxxxx");
+      this.otherUsername=sessionStorage.getItem("otheruser");
+      const messageRef1=db.database().ref(this.username);
+      var allmessages=[];
       
-      messageRef.orderByChild("username").equalTo(sessionStorage.getItem("username")).on('value',snapshot=>{
+      messageRef1.orderByChild("otheruser").equalTo(this.otherUsername).on('value',snapshot=>{
         const data=snapshot.val();
-        let allmessages=[];
         Object.keys(data).forEach(key=>{
           if(data[key].username==sessionStorage.getItem("username")){
               allmessages.push({
               id:key,
+              msgcount:data[key].msgcount,
               username:data[key].username,
               content:data[key].content
             });
           }
         });
-        this.messages=allmessages;
       });
+
+      const messageRef2=db.database().ref(this.otherUsername);
+      
+      messageRef2.orderByChild("otheruser").equalTo(this.username).on('value',snapshot=>{
+        const data=snapshot.val();
+        Object.keys(data).forEach(key=>{
+          if(data[key].username==this.otherUsername){
+              allmessages.push({
+              id:key,
+              msgcount:data[key].msgcount,
+              username:data[key].username,
+              content:data[key].content
+            });
+          }
+        });
+      });
+      this.messages=allmessages.sort((a, b) => {
+      return a.msgcount - b.msgcount;
+    });
+
+      allmessages=[];
+      sessionStorage.setItem("messagecount",this.messages.length)
+    }
+    ,
+    sortMessages(a,b){
+      const bandA = a.msgcount;
+      const bandB = b.msgcount;
+
+      let comparison = 0;
+      if (bandA > bandB) {
+        comparison = 1;
+      } else if (bandA < bandB) {
+        comparison = -1;
+      }
+      return comparison;
     }
     ,
     logout () {
@@ -124,7 +245,17 @@ export default {
         sessionStorage.clear();
       }
     }
-  }
+  },
+  mounted() {
+
+    this.getMessages();
+    this.getUsers();
+    this.viewChat();
+    this.scrollToEnd();
+  },
+  updated(){
+    this.scrollToEnd();
+  },
 
 }
 </script>
@@ -136,7 +267,6 @@ export default {
 
   body{
     margin: 0;
-    /* background-image: linear-gradient(rgb(0, 238, 226),rgb(0, 146, 139) ); */
     background-color: rgb(0, 146, 139);
     background-size: cover;
     background-repeat: no-repeat;
@@ -145,7 +275,7 @@ export default {
   }
 
   .loging{
-    width: 70%;
+    width: 1200px;
     margin: auto;
     transform: translate(0, 30%);
     box-shadow: 10px 15px 15px -5px rgba(0, 0, 0, 0.2);
@@ -167,6 +297,50 @@ export default {
     content: "";
     display: table;
     clear: both;
+  }
+
+  .pro-img{
+    width: 80%;
+  }
+
+  .col1{
+    float: left;
+    width: 30%;
+    height: 700px;
+    border-right: 1px solid rgb(190, 190, 190);
+  }
+
+  .col2{
+    float: left;
+    width: 70%;
+    height: 700px;
+  }
+
+  .colu1{
+    float: left;
+    width: 20%;
+  }
+
+  .colu2{
+    padding-top: 1.1rem;
+    padding-bottom: 1.5rem;
+    float: left;
+    width: 80%;
+    font-family: Comic Sans MS, Comic Sans, cursive;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.2);
+  }
+
+  .colu1 img{
+    margin-top: 0.5rem;
+  }
+
+  .user{
+    float: left;
+    width: 100%;
+    padding: 0.5rem;
+    font-size: 150%;
+    /* border-bottom: 1px solid gray; */
+    font-family: "Lucida Console", "Courier New", monospace;
   }
 
   img{
@@ -238,13 +412,30 @@ export default {
     background-color: rgb(192, 0, 0);
   }
 
-  .chat-box{
-    width: 80%;
+  .chats{
+    width: 1400px;
     height: 700px;
     margin: auto;
-    transform: translate(0, 10%);
+    transform: translate(0, 8%);
     box-shadow: 10px 15px 15px -5px rgba(0, 0, 0, 0.2);
     background-color: white;
+  }
+
+  .chat-box{
+    width: 100%;
+    height: 700px;
+    transform: translate(0, 0);
+    /* box-shadow: 10px 15px 15px -5px rgba(0, 0, 0, 0.2); */
+    background-color: white;
+  }
+
+  .chat-list{
+    width: 100%;
+    height: 700px;
+    transform: translate(0, 0);
+    /* box-shadow: 10px 15px 15px -5px rgba(0, 0, 0, 0.2); */
+    background-color: rgb(255, 255, 255);
+    /* background-color: white; */
   }
 
   .nav {
@@ -254,41 +445,48 @@ export default {
     position: relative;
   }
 
-  .nav > .nav-header {
+  .nav .nav-header {
     display: inline;
   }
 
-  .nav > .nav-header > .nav-title {
+  .nav .nav-header .nav-title {
     display: inline-block;
-    font-size: 250%;
     color: rgb(255, 255, 255);
-    font-family: "Lucida Console", "Courier New", monospace;
     padding: 10px 10px 10px 10px;
   }
 
-  .nav > .nav-btn {
-    display: none;
+  .welcome-user{
+    font-size: 250%;
+    font-family: 'Brush Script MT', cursive;
   }
 
-  .nav > .nav-links {
-    display: inline;
-    float: right;
-    font-size: 20px;
+  .user-name{
+    margin-top: 0.75rem;
+    font-size: 150%;
     font-family: "Lucida Console", "Courier New", monospace;
   }
 
-  .nav > .nav-links > a {
+  .nav .nav-btn {
+    display: none;
+  }
+
+  .nav .nav-links {
+    display: inline;
+    float: right;
+    font-size: 20px;
+    padding-top: 10px;
+    font-family: "Lucida Console", "Courier New", monospace;
+  }
+
+  .nav .nav-links a {
     display: inline-block;
     padding: 13px 10px 13px 10px;
     text-decoration: none;
+    cursor: pointer;
     color: rgb(255, 255, 255);
   }
 
-  .nav > .nav-links > a:hover {
-    color: rgba(0, 0, 0, 0.3);
-  }
-
-  .nav > #nav-check {
+  .nav #nav-check {
     display: none;
   }
 
@@ -326,28 +524,28 @@ export default {
   }
 
   @media (max-width:600px) {
-    .nav > .nav-btn {
+    .nav .nav-btn {
       display: inline-block;
       position: absolute;
       right: 0px;
       top: 0px;
     }
-    .nav > .nav-btn > label {
+    .nav .nav-btn > label {
       display: inline-block;
       width: 50px;
       height: 50px;
       padding: 13px;
     }
-    .nav > .nav-btn > label:hover,.nav  #nav-check:checked ~ .nav-btn > label {
+    .nav .nav-btn label:hover,.nav  #nav-check:checked ~ .nav-btn > label {
       background-color: rgba(0, 0, 0, 0.3);
     }
-    .nav > .nav-btn > label > span {
+    .nav .nav-btn label > span {
       display: block;
       width: 25px;
       height: 10px;
       border-top: 2px solid #eee;
     }
-    .nav > .nav-links {
+    .nav .nav-links {
       position: absolute;
       display: block;
       width: 100%;
@@ -358,14 +556,14 @@ export default {
       top: 50px;
       left: 0px;
     }
-    .nav > .nav-links > a {
+    .nav .nav-links > a {
       display: block;
       width: 100%;
     }
-    .nav > #nav-check:not(:checked) ~ .nav-links {
+    .nav #nav-check:not(:checked) ~ .nav-links {
       height: 0px;
     }
-    .nav > #nav-check:checked ~ .nav-links {
+    .nav #nav-check:checked ~ .nav-links {
       height: calc(100vh - 50px);
       overflow-y: auto;
     }
@@ -373,22 +571,51 @@ export default {
 
   /* -------------------- */
 
+
+.user{
+  cursor: pointer;
+}
   :root {
   --body-bg: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
   --msger-bg: #fff;
   --border: 2px solid #ddd;
-  --left-msg-bg: #ececec;
+  --left-msg-bg: #e2e2e2;
   --right-msg-bg: #579ffb;
+}
+
+.users {
+  display: flex;
+  flex-flow: column wrap;
+  justify-content: space-between;
+  /* margin: 25px 10px; */
+  height: calc(80% - 20px);
+  /* border-radius: 5px; */
+  background-color: rgb(255, 255, 255);
+  /* background: var(--msger-bg); */
 }
 
 .msger {
   display: flex;
   flex-flow: column wrap;
   justify-content: space-between;
-  margin: 25px 10px;
-  height: calc(80% - 50px);
-  border-radius: 5px;
+  /* margin: 25px 10px; */
+  height: calc(80% - 20px);
+  /* border-radius: 5px; */
   background: var(--msger-bg);
+}
+
+.user-chats {
+  flex: 1;
+  overflow-y: auto;
+}
+.user-chats::-webkit-scrollbar {
+  width: 6px;
+}
+.user-chats::-webkit-scrollbar-track {
+  background: #ddd;
+}
+.user-chats::-webkit-scrollbar-thumb {
+  background: #bdbdbd;
 }
 
 .msger-chat {
@@ -472,9 +699,10 @@ export default {
   background: rgb(0, 196, 65);
   color: #fff;
   font-weight: bold;
-  margin-top: 15px;
+  margin-top: 16px;
   margin-bottom: 11px;
   cursor: pointer;
+  outline: none;
   transition: background 0.23s;
 }
 .msger-send-btn:hover {
