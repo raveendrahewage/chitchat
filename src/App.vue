@@ -12,7 +12,7 @@
           </div>
           <form @submit.prevent="login()">
             <div class="username-input">
-              <input type="text" name="username" id="" v-model="inputUserName" placeholder="Enter your username..">
+              <input type="text" name="username" v-model="inputUserName" placeholder="Enter your username..">
             </div>
             <div class="login-btn">
               <input type="submit" value="LOG IN">
@@ -35,6 +35,25 @@
             </div>
           </div>
           <section class="users">
+            <div class="row">
+              <div class="search">
+                <input type="search" class="searchbar" v-model="userSearch" name="searchuser" v-on:keyup="searchUser()">
+              </div>
+              <div v-if="searchResults.length!=0 && userSearch != '' && userSearch != null">
+                <div v-for="user in  searchResults" :key="user.key" class="user" v-on:click="viewChat(user.username)">
+                  <div class="row">
+                    <div class="colu1">
+                      <div class="pro-img">
+                        <img src="./assets/img/user.png" alt="" srcset="">
+                      </div>
+                    </div>
+                  <div class="colu2">
+                    {{user.username}}
+                  </div>
+                </div>
+              </div>
+            </div>
+            </div>
             <main class="user-chats">
               <div class="row">
                 <div v-for="user in users" :key="user.key" class="user" v-on:click="viewChat(user.username)">
@@ -105,7 +124,9 @@ export default {
       inputUserName:'',
       inputMessage:'',
       users:[],
-      otherUsername:''
+      otherUsername:'',
+      userSearch:'',
+      searchResults:[]
     }
   },
   methods:{
@@ -135,7 +156,7 @@ export default {
             // this.getMessages();
             this.getUsers();
           }
-      });
+        });
       }
     },
     sendMessage(){
@@ -159,10 +180,33 @@ export default {
       }
     },
     viewChat(otherUser){
+      this.messages=[];
       this.otherUsername=otherUser;
       sessionStorage.setItem("otheruser", otherUser);
       document.getElementById("otheruser").innerText=sessionStorage.getItem("otheruser");
       this.getMessages();
+    },
+    searchUser(){
+      if(this.userSearch.length!=0 && this.userSearch!=this.username){
+        const messageRef=db.database().ref("users");
+      
+        messageRef.orderByChild("username").equalTo(this.userSearch).on('value',snapshot=>{
+          const data=snapshot.val();
+          if(data.length!=0){
+            let searchresults=[];
+            Object.keys(data).forEach(key=>{
+                searchresults.push({
+                username:data[key].username,
+              });
+            });
+            this.searchResults=searchresults;
+          }else{
+            return;
+          }
+        });
+      }else{
+        return;
+      }
     }
     ,
     getUsers(){
@@ -182,7 +226,6 @@ export default {
       });
     },
     getMessages(){
-      this.messages=[];
       this.username=sessionStorage.getItem("username");
       this.otherUsername=sessionStorage.getItem("otheruser");
       const messageRef1=db.database().ref(this.username);
@@ -319,6 +362,21 @@ export default {
   .colu1{
     float: left;
     width: 20%;
+  }
+
+  .search{
+    float: left;
+    width: 100%;
+    padding: 0.5rem;
+    border-bottom: 1px solid rgb(231, 231, 231);
+  }
+
+  .searchbar{
+    width: 100%;
+    padding: 10px;
+    border-radius: 25px;
+    border: 1px solid rgb(175, 175, 175);
+    outline: none;
   }
 
   .colu2{
@@ -588,7 +646,7 @@ export default {
   flex-flow: column wrap;
   justify-content: space-between;
   /* margin: 25px 10px; */
-  height: calc(80% - 20px);
+  height: calc(90%);
   /* border-radius: 5px; */
   background-color: rgb(255, 255, 255);
   /* background: var(--msger-bg); */
