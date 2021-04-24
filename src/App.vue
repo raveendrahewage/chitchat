@@ -37,7 +37,7 @@
           <section class="users">
             <div class="row">
               <div class="search">
-                <input type="search" class="searchbar" v-model="userSearch" name="searchuser" v-on:keyup="searchUser()">
+                <input type="search" class="searchbar" v-model="userSearch" name="searchuser" placeholder="Search..." v-on:keyup="searchUser()">
               </div>
               <div v-if="searchResults.length!=0 && userSearch != '' && userSearch != null">
                 <div v-for="user in  searchResults" :key="user.key" class="user" v-on:click="viewChat(user.username)">
@@ -78,7 +78,8 @@
           <div class="nav">
             <input type="checkbox" id="nav-check">
             <div class="nav-header">
-              <div class="nav-title user-name" id="otheruser">
+              <div class="nav-title user-name" v-if="otherUsername!='undefined'">
+                {{otherUsername}}
               </div>
             </div>
             <div class="nav-links">
@@ -89,10 +90,10 @@
             <main class="msger-chat">
               <div v-for="message in messages" :key="message.key" :class="(message.username==username ? 'msg right-msg' : 'msg left-msg')" class="message">
                 <div class="msg-bubble">
-                  <!-- <div class="msg-info">
-                    <div class="msg-info-name">BOT</div>
-                    <div class="msg-info-time">12:45</div>
-                  </div> -->
+                  <div class="msg-info">
+                    <div class="msg-info-name">{{message.date}}</div>
+                    <div class="msg-info-time">{{message.time}}</div>
+                  </div>
                   <div class="msg-text">
                     {{message.content}}
                   </div>
@@ -126,16 +127,22 @@ export default {
       users:[],
       otherUsername:'',
       userSearch:'',
-      searchResults:[]
+      searchResults:[],
+      time:'',
+      date:'',
+      msgcount:0
+
     }
   },
   methods:{
     scrollToEnd() {
+      // document.getElementById("otheruser").innerText=this.otherUsername;
 			var container = document.querySelector(".msger-chat");
 			var scrollHeight = container.scrollHeight;
 			container.scrollTop = scrollHeight;
 		},
     login () {
+      this.getDate();
       if(this.inputUserName!="" || this.inputUserName!=null){
         sessionStorage.setItem("username", this.inputUserName);
         this.username=sessionStorage.getItem("username");
@@ -163,14 +170,18 @@ export default {
       this.username=sessionStorage.getItem("username");
       let count=sessionStorage.getItem("messagecount");
       const messageRef=db.database().ref(this.username);
-      if(this.inputMessage=="" || this.inputMessage==null || this.otherUsername=="" || this.otherUsername==null || sessionStorage.getItem("otheruser")=='undefined'){
+      if(this.inputMessage=="" || this.inputMessage==null){
         return;
       }else{
+        this.getTime();
+        this.getDate();
         const message={
           msgcount:parseInt(count)+1,
           otheruser:this.otherUsername,
           username:sessionStorage.getItem("username"),
-          content:this.inputMessage
+          content:this.inputMessage,
+          time:this.time,
+          date:this.date
         }
         messageRef.push(message);
         this.inputMessage="";
@@ -183,8 +194,22 @@ export default {
       this.messages=[];
       this.otherUsername=otherUser;
       sessionStorage.setItem("otheruser", otherUser);
-      document.getElementById("otheruser").innerText=sessionStorage.getItem("otheruser");
-      this.getMessages();
+      setInterval(()=>{
+        this.getMessages();
+      },1000)
+      // this.getMessages();
+    },
+    getTime(){
+      var today = new Date();
+      if(today.getHours()>12){
+        this.time = (today.getHours()-12) + ":" + today.getMinutes()+" pm";
+      }else{
+        this.time = today.getHours() + ":" + today.getMinutes()+" am";
+      }
+    },
+    getDate(){
+      var today = new Date();
+      this.date = today.getFullYear()+'-'+(today.getMonth()+1)+'-'+today.getDate();
     },
     searchUser(){
       if(this.userSearch.length!=0 && this.userSearch!=this.username){
@@ -239,7 +264,9 @@ export default {
               id:key,
               msgcount:data[key].msgcount,
               username:data[key].username,
-              content:data[key].content
+              content:data[key].content,
+              time:data[key].time,
+              date:data[key].date
             });
           }
         });
@@ -255,7 +282,9 @@ export default {
               id:key,
               msgcount:data[key].msgcount,
               username:data[key].username,
-              content:data[key].content
+              content:data[key].content,
+              time:data[key].time,
+              date:data[key].date
             });
           }
         });
@@ -265,9 +294,8 @@ export default {
     });
 
       allmessages=[];
-      sessionStorage.setItem("messagecount",this.messages.length)
-    }
-    ,
+      sessionStorage.setItem("messagecount",this.messages.length);
+    },
     sortMessages(a,b){
       const bandA = a.msgcount;
       const bandB = b.msgcount;
@@ -285,20 +313,25 @@ export default {
       if(this.inputUserName!="" || this.inputUserName!=null){
         this.username="";
         this.messages=[];
+        this.otherUsername='';
         sessionStorage.clear();
       }
     }
   },
   mounted() {
-
     this.getMessages();
     this.getUsers();
-    this.viewChat();
-    this.scrollToEnd();
+    // this.viewChat();
   },
   updated(){
-    this.scrollToEnd();
+    if(this.msgcount!=sessionStorage.getItem("messagecount")){
+      this.msgcount=sessionStorage.getItem("messagecount");
+      this.scrollToEnd();
+    }
   },
+  created(){
+    this.getMessages();
+  }
 
 }
 </script>
@@ -320,7 +353,7 @@ export default {
   .loging{
     width: 1200px;
     margin: auto;
-    transform: translate(0, 30%);
+    transform: translate(0, 20%);
     box-shadow: 10px 15px 15px -5px rgba(0, 0, 0, 0.2);
   }
 
@@ -349,14 +382,14 @@ export default {
   .col1{
     float: left;
     width: 30%;
-    height: 700px;
+    height: 600px;
     border-right: 1px solid rgb(190, 190, 190);
   }
 
   .col2{
     float: left;
     width: 70%;
-    height: 700px;
+    height: 600px;
   }
 
   .colu1{
@@ -377,6 +410,7 @@ export default {
     border-radius: 25px;
     border: 1px solid rgb(175, 175, 175);
     outline: none;
+    background-color: rgb(245, 245, 245);
   }
 
   .colu2{
@@ -397,7 +431,8 @@ export default {
     width: 100%;
     padding: 0.5rem;
     font-size: 150%;
-    /* border-bottom: 1px solid gray; */
+    cursor: pointer;
+    /* border: 1px solid rgb(238, 238, 238); */
     font-family: "Lucida Console", "Courier New", monospace;
   }
 
@@ -472,16 +507,16 @@ export default {
 
   .chats{
     width: 1400px;
-    height: 700px;
+    height: 600px;
     margin: auto;
-    transform: translate(0, 8%);
+    transform: translate(0, 10%);
     box-shadow: 10px 15px 15px -5px rgba(0, 0, 0, 0.2);
     background-color: white;
   }
 
   .chat-box{
     width: 100%;
-    height: 700px;
+    height: 600px;
     transform: translate(0, 0);
     /* box-shadow: 10px 15px 15px -5px rgba(0, 0, 0, 0.2); */
     background-color: white;
@@ -489,7 +524,7 @@ export default {
 
   .chat-list{
     width: 100%;
-    height: 700px;
+    height: 600px;
     transform: translate(0, 0);
     /* box-shadow: 10px 15px 15px -5px rgba(0, 0, 0, 0.2); */
     background-color: rgb(255, 255, 255);
@@ -628,11 +663,6 @@ export default {
   }
 
   /* -------------------- */
-
-
-.user{
-  cursor: pointer;
-}
   :root {
   --body-bg: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
   --msger-bg: #fff;
@@ -646,7 +676,7 @@ export default {
   flex-flow: column wrap;
   justify-content: space-between;
   /* margin: 25px 10px; */
-  height: calc(90%);
+  height: calc(88%);
   /* border-radius: 5px; */
   background-color: rgb(255, 255, 255);
   /* background: var(--msger-bg); */
@@ -657,7 +687,7 @@ export default {
   flex-flow: column wrap;
   justify-content: space-between;
   /* margin: 25px 10px; */
-  height: calc(80% - 20px);
+  height: calc(73%);
   /* border-radius: 5px; */
   background: var(--msger-bg);
 }
@@ -714,7 +744,7 @@ export default {
 }
 .msg-info-name {
   margin-right: 10px;
-  font-weight: bold;
+  font-size: 0.85em;
 }
 .msg-info-time {
   font-size: 0.85em;
