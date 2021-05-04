@@ -12,6 +12,7 @@
           </div>
           <form @submit.prevent="login()">
             <div class="username-input">
+              <input type="text" name="username" v-model="inputName" placeholder="Enter your nickname..">
               <input type="text" name="username" v-model="inputUserName" placeholder="Enter your username..">
             </div>
             <div class="login-btn">
@@ -48,7 +49,7 @@
                       </div>
                     </div>
                   <div class="colu2">
-                    {{user.username}}
+                    {{user.name}}
                   </div>
                 </div>
               </div>
@@ -64,7 +65,7 @@
                       </div>
                     </div>
                     <div class="colu2">
-                      {{user.username}}
+                      {{user.name}}
                     </div>
                   </div>
                 </div>
@@ -122,6 +123,7 @@ export default {
     return {
       username:'',
       messages:[],
+      inputName:'',
       inputUserName:'',
       inputMessage:'',
       users:[],
@@ -143,7 +145,7 @@ export default {
 		},
     login () {
       this.getDate();
-      if(this.inputUserName!="" || this.inputUserName!=null){
+      if((this.inputUserName!="" || this.inputUserName!=null) && (this.inputName!="" || this.inputName!=null)){
         sessionStorage.setItem("username", this.inputUserName);
         this.username=sessionStorage.getItem("username");
         this.inputUserName="";
@@ -157,6 +159,7 @@ export default {
           }else{
             const messageRef=db.database().ref("users");
             const user={
+              name:this.inputName,
               username:sessionStorage.getItem("username"),
             }
             messageRef.push(user);
@@ -215,13 +218,14 @@ export default {
       if(this.userSearch.length!=0 && this.userSearch!=this.username){
         const messageRef=db.database().ref("users");
       
-        messageRef.orderByChild("username").equalTo(this.userSearch).on('value',snapshot=>{
+        messageRef.orderByChild("name").equalTo(this.userSearch).on('value',snapshot=>{
           const data=snapshot.val();
           if(data.length!=0){
             let searchresults=[];
             Object.keys(data).forEach(key=>{
                 searchresults.push({
                 username:data[key].username,
+                name:data[key].name
               });
             });
             this.searchResults=searchresults;
@@ -237,13 +241,14 @@ export default {
     getUsers(){
       const messageRef=db.database().ref("users");
       
-      messageRef.orderByChild("username").on('value',snapshot=>{
+      messageRef.orderByChild("name").on('value',snapshot=>{
         const data=snapshot.val();
         let allusers=[];
         Object.keys(data).forEach(key=>{
           if(data[key].username!=this.username){
               allusers.push({
               username:data[key].username,
+              name:data[key].name,
             });
           }
         });
@@ -318,11 +323,6 @@ export default {
       }
     }
   },
-  mounted() {
-    this.getMessages();
-    this.getUsers();
-    // this.viewChat();
-  },
   updated(){
     if(this.msgcount!=sessionStorage.getItem("messagecount")){
       this.msgcount=sessionStorage.getItem("messagecount");
@@ -331,6 +331,7 @@ export default {
   },
   created(){
     this.getMessages();
+    this.getUsers();
   }
 
 }
