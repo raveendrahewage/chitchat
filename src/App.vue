@@ -1,6 +1,6 @@
 <template>
 <div>
-  <div class="loging" v-if="username === '' || username === null">
+  <div class="loging" v-if="username === '' || username === null || nickname==='' || nickname===null">
     <div class="row">
       <div class="column1">
         <img src="./assets/img/bg2.jpg" alt="">
@@ -12,7 +12,7 @@
           </div>
           <form @submit.prevent="login()">
             <div class="username-input">
-              <input type="text" name="username" v-model="inputName" placeholder="Enter your nickname..">
+              <input type="text" name="nickname" v-model="inputName" placeholder="Enter your nickname..">
               <input type="text" name="username" v-model="inputUserName" placeholder="Enter your username..">
             </div>
             <div class="login-btn">
@@ -41,7 +41,7 @@
                 <input type="search" class="searchbar" v-model="userSearch" name="searchuser" placeholder="Search..." v-on:keyup="searchUser()">
               </div>
               <div v-if="searchResults.length!=0 && userSearch != '' && userSearch != null">
-                <div v-for="user in  searchResults" :key="user.key" class="user" v-on:click="viewChat(user.username)">
+                <div v-for="user in  searchResults" :key="user.key" class="user" v-on:click="viewChat(user.username,user.name)">
                   <div class="row">
                     <div class="colu1">
                       <div class="pro-img">
@@ -57,7 +57,7 @@
             </div>
             <main class="user-chats">
               <div class="row">
-                <div v-for="user in users" :key="user.key" class="user" v-on:click="viewChat(user.username)">
+                <div v-for="user in users" :key="user.key" class="user" v-on:click="viewChat(user.username,user.name)">
                   <div class="row">
                     <div class="colu1">
                       <div class="pro-img">
@@ -80,7 +80,7 @@
             <input type="checkbox" id="nav-check">
             <div class="nav-header">
               <div class="nav-title user-name" v-if="otherUsername!='undefined'">
-                {{otherUsername}}
+                {{otherNickname}}
               </div>
             </div>
             <div class="nav-links">
@@ -122,12 +122,14 @@ export default {
   data () {
     return {
       username:'',
+      nickname:'',
       messages:[],
       inputName:'',
       inputUserName:'',
       inputMessage:'',
       users:[],
       otherUsername:'',
+      otherNickname:'',
       userSearch:'',
       searchResults:[],
       time:'',
@@ -145,28 +147,33 @@ export default {
 		},
     login () {
       this.getDate();
-      if((this.inputUserName!="" || this.inputUserName!=null) && (this.inputName!="" || this.inputName!=null)){
-        sessionStorage.setItem("username", this.inputUserName);
-        this.username=sessionStorage.getItem("username");
-        this.inputUserName="";
-        const messageRef=db.database().ref("users");
-      
-        messageRef.orderByChild("username").equalTo(sessionStorage.getItem("username")).on('value',snapshot=>{
-          const data=snapshot.val();
-          if(data){
-            // this.getMessages();
-            this.getUsers();
-          }else{
-            const messageRef=db.database().ref("users");
-            const user={
-              name:this.inputName,
-              username:sessionStorage.getItem("username"),
+      sessionStorage.setItem("username", this.inputUserName);
+      sessionStorage.setItem("nickname", this.inputName);
+      this.username=sessionStorage.getItem("username");
+      this.nickname=sessionStorage.getItem("nickname");
+      if(this.nickname!=='' && this.nickname!==null){
+        if(this.username!=='' && this.username!==null){
+          this.inputUserName="";
+          this.inputName="";
+          const messageRef=db.database().ref("users");
+        
+          messageRef.orderByChild("username").equalTo(sessionStorage.getItem("username")).on('value',snapshot=>{
+            const data=snapshot.val();
+            if(data){
+              // this.getMessages();
+              this.getUsers();
+            }else{
+              const messageRef=db.database().ref("users");
+              const user={
+                name:this.nickname,
+                username:this.username,
+              }
+              messageRef.push(user);
+              // this.getMessages();
+              this.getUsers();
             }
-            messageRef.push(user);
-            // this.getMessages();
-            this.getUsers();
-          }
-        });
+          });
+        }
       }
     },
     sendMessage(){
@@ -193,9 +200,10 @@ export default {
         elem.scrollTop = elem.scrollHeight;
       }
     },
-    viewChat(otherUser){
+    viewChat(otherUser,otherNickName){
       this.messages=[];
       this.otherUsername=otherUser;
+      this.otherNickname=otherNickName;
       sessionStorage.setItem("otheruser", otherUser);
       setInterval(()=>{
         this.getMessages();
@@ -245,7 +253,7 @@ export default {
         const data=snapshot.val();
         let allusers=[];
         Object.keys(data).forEach(key=>{
-          if(data[key].username!=this.username){
+          if(data[key].name!=this.nickname && data[key].name!=""){
               allusers.push({
               username:data[key].username,
               name:data[key].name,
